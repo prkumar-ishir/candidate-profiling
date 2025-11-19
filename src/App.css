@@ -4,6 +4,7 @@
   }
 }
 
+/* Global theming + layout primitives for Candidate Profiling UI */
 :root {
   font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   line-height: 1.4;
@@ -348,12 +349,14 @@ body {
   color: #475569;
 }
 
+/* Divider separating JD insights from the interview accordion */
 .section-divider {
   border: 0;
   border-top: 1px solid #e2e8f0;
   margin: 1.5rem 0;
 }
 
+/* AI-generated interview accordion styling */
 .interview-section {
   background: #fefefe;
   box-shadow: 0 12px 40px rgba(15, 23, 42, 0.08);

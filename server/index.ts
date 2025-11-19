@@ -1,3 +1,9 @@
+/**
+ * Semantic scoring microservice. Handles two endpoints:
+ *  - /api/semantic-score: sends JD + resume + keywords to OpenAI for alignment scoring.
+ *  - /api/semantic-keywords: sends JD to OpenAI for requirement extraction + interview prompts.
+ * The front-end calls these endpoints whenever the user uploads JDs/resumes.
+ */
 import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
@@ -22,6 +28,11 @@ app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok' });
 });
 
+/**
+ * POST /api/semantic-score
+ * Takes JD, resume, and keyword metadata. The payload is converted into a
+ * structured prompt sent to GPT for scoring, summaries, and capability breakdowns.
+ */
 app.post('/api/semantic-score', async (req, res) => {
   if (!openAiKey) {
     return res.status(500).json({ error: 'Server is missing OPENAI_API_KEY configuration.' });
@@ -34,6 +45,7 @@ app.post('/api/semantic-score', async (req, res) => {
   }
 
   try {
+    // Build a JSON-schema constrained request to ensure predictable output.
     const payload = buildPromptPayload(jdText, resumeText, keywords);
     const response = await openai.responses.create(payload);
     const structured = extractStructuredResponse(response);
@@ -44,6 +56,11 @@ app.post('/api/semantic-score', async (req, res) => {
   }
 });
 
+/**
+ * POST /api/semantic-keywords
+ * Accepts JD text and returns prioritized requirements + interview Q&A prompts
+ * so the client can populate both keyword chips and question accordions.
+ */
 app.post('/api/semantic-keywords', async (req, res) => {
   if (!openAiKey) {
     return res.status(500).json({ error: 'Server is missing OPENAI_API_KEY configuration.' });
@@ -81,6 +98,7 @@ function buildPromptPayload(
   resumeText: string,
   keywords: KeywordInput,
 ) {
+  // Provide the model with a concise keyword digest so it can ground its comparisons.
   const keywordSummary = Array.isArray(keywords)
     ? keywords
         .slice(0, 14)
@@ -93,7 +111,7 @@ function buildPromptPayload(
         .join('\n')
     : 'No keyword metadata provided.';
 
-const prompt = `You are an HR screening assistant. Score how well the resume aligns with the job description.
+  const prompt = `You are an HR screening assistant. Score how well the resume aligns with the job description.
 Return JSON with:
 - semanticScore: 0-100 integer, holistic probability of success.
 - summary: 1 sentence explaining the score.
@@ -279,6 +297,10 @@ Focus on concrete skills, systems, certifications, and responsibilities. Use the
   };
 }
 
+/**
+ * truncateForModel ensures we do not exceed model token limits when sending
+ * verbose JD/resume texts. Adds an indicator when truncation occurs.
+ */
 function truncateForModel(text: string, maxChars = 3500): string {
   if (text.length <= maxChars) {
     return text;
@@ -286,6 +308,10 @@ function truncateForModel(text: string, maxChars = 3500): string {
   return `${text.slice(0, maxChars)}... [truncated]`;
 }
 
+/**
+ * Extracts the JSON output from the OpenAI Responses API payload. Throws when
+ * text output is missing so callers can respond with a 5xx to the client.
+ */
 function extractStructuredResponse(response: OpenAI.Beta.Responses.Response) {
   const content = response.output?.flatMap((output) => output.content) ?? [];
   const textChunk = content.find((chunk) => chunk.type === 'output_text');

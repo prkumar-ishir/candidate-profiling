@@ -1,3 +1,7 @@
+/**
+ * Browser-side client for semantic endpoints. Normalizes API responses and
+ * re-exports typed helpers so React components can consume structured data.
+ */
 import type { KeywordInsight } from './textProcessing';
 
 export type CapabilityInsight = {
@@ -42,6 +46,10 @@ type SemanticRequestPayload = {
   keywords: KeywordInsight[];
 };
 
+/**
+ * Calls /api/semantic-score with JD/resume text and keyword metadata.
+ * Returns semantic scoring output or null when the server cannot respond.
+ */
 export async function requestSemanticAnalysis(
   payload: SemanticRequestPayload,
 ): Promise<SemanticAnalysisResponse | null> {
@@ -78,6 +86,10 @@ export async function requestSemanticAnalysis(
   }
 }
 
+/**
+ * Calls /api/semantic-keywords. Provides an aggregate of requirements for the
+ * keyword chips and interview Q&A prompts for the JD section.
+ */
 export async function requestSemanticKeywords(
   jdText: string,
 ): Promise<SemanticKeywordBundle | null> {

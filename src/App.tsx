@@ -1,4 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
+/**
+ * Primary React application shell. Handles JD/resume ingestion, invokes
+ * semantic services, blends fallback heuristics, and renders the entire UI.
+ */
 import { analyzeResume, extractKeywords } from './utils/textProcessing';
 import type {
   KeywordInsight,
@@ -26,6 +30,7 @@ type ResumeInsightState = (ResumeAnalysis & {
   capabilityBreakdown: CapabilityInsight[];
 }) | null;
 
+// Map raw AI priority labels into the requirement tiers used across the UI.
 const priorityMap: Record<SemanticKeyword['priority'], RequirementTier> = {
   'must-have': 'core',
   responsibility: 'responsibility',
@@ -70,12 +75,14 @@ const COMMUNICATION_HINTS = [
   'manager',
 ];
 
+// Titles/ids for the capability cards shown above the strong matches list.
 const CAPABILITY_METADATA: Array<{ id: CapabilityInsight['id']; title: string }> = [
   { id: 'technical', title: 'Technical & Engineering Expertise' },
   { id: 'delivery', title: 'Delivery, Execution & Systems Knowledge' },
   { id: 'communication', title: 'Communication, Leadership & Collaboration' },
 ];
 
+// Natural language labels used when referencing a tier inside helper copy.
 const PRIORITY_DESCRIPTIONS: Record<RequirementTier, string> = {
   core: 'must-have',
   responsibility: 'role scope',
@@ -83,6 +90,10 @@ const PRIORITY_DESCRIPTIONS: Record<RequirementTier, string> = {
   general: 'baseline',
 };
 
+/**
+ * Generates interview prompts when the semantic service cannot provide any.
+ * Uses the top JD keywords to craft high-signal questions and fallback guidance.
+ */
 function buildFallbackInterviewQuestions(keywords: KeywordInsight[]): InterviewQuestion[] {
   if (!keywords.length) {
     return [];
@@ -159,6 +170,10 @@ function mapPriority(value: SemanticKeyword['priority']): RequirementTier {
   return priorityMap[value] ?? 'general';
 }
 
+/**
+ * Approximates which capability bucket a keyword belongs to. Used for
+ * heuristic scoring and to blend AI narratives when structured data is missing.
+ */
 function mapMatchToCapability(match: KeywordMatch): CapabilityInsight['id'] {
   const normalized = `${match.label} ${match.canonical}`.toLowerCase();
   if (
@@ -189,6 +204,10 @@ function summarizeCapabilityScore(score: number, title: string): string {
   return `No evidence of ${title.toLowerCase()} detected in the resume.`;
 }
 
+/**
+ * Builds capability cards using deterministic keyword analysis. Acts as the
+ * primary fallback when semantic scoring is unavailable.
+ */
 function buildFallbackCapabilities(analysis: ResumeAnalysis): CapabilityInsight[] {
   const tracker: Record<
     CapabilityInsight['id'],
@@ -238,6 +257,7 @@ function buildFallbackCapabilities(analysis: ResumeAnalysis): CapabilityInsight[
   });
 }
 
+// Attempts to infer which capability a textual bullet belongs to.
 function categorizeTextCapability(text: string): CapabilityInsight['id'] {
   const normalized = text.toLowerCase();
   if (COMMUNICATION_HINTS.some((hint) => normalized.includes(hint))) {
@@ -249,6 +269,10 @@ function categorizeTextCapability(text: string): CapabilityInsight['id'] {
   return 'technical';
 }
 
+/**
+ * Combines semantic aligned/missing themes with fallback capability data to
+ * ensure the UI always shows meaningful scores when AI returns partial data.
+ */
 function blendSemanticSignals(
   semanticResult: SemanticAnalysisResponse,
   fallbackCapabilities: CapabilityInsight[],
@@ -334,6 +358,7 @@ function App() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [showScrollTop, setShowScrollTop] = useState(false);
 
+  // Summarize JD priorities for the keyword breakdown card.
   const keywordSummary = useMemo(() => {
     if (!jdKeywords.length) {
       return null;
@@ -379,6 +404,10 @@ function App() {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
+  /**
+   * Handles JD upload: extracts text, calls semantic keyword service, and
+   * seeds fallback data when AI keywords/questions are unavailable.
+   */
   const handleJobDescriptionUpload = async (
     event: React.ChangeEvent<HTMLInputElement>,
   ) => {
@@ -442,6 +471,10 @@ function App() {
     }
   };
 
+  /**
+   * Handles resume upload: runs heuristic analysis, calls semantic scoring,
+   * blends capability data, and updates UI state with the combined insights.
+   */
   const handleResumeUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     event.target.value = '';

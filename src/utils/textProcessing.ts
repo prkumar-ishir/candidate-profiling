@@ -206,6 +206,11 @@ const SYNONYM_GROUPS: string[][] = [
 
 const SYNONYM_LOOKUP = buildSynonymMap();
 
+/**
+ * Heuristic keyword extractor used when semantic keyword service is unavailable.
+ * Splits the JD into fragments, tokenizes phrases, weights them, and returns
+ * the highest-signal requirements for chip rendering.
+ */
 export function extractKeywords(text: string, limit = 28): KeywordInsight[] {
   const fragments = splitIntoFragments(text);
   const totalFragments = Math.max(fragments.length, 1);
@@ -285,6 +290,11 @@ export function extractKeywords(text: string, limit = 28): KeywordInsight[] {
   return refined.slice(0, limit);
 }
 
+/**
+ * Analyzes a resume against the JD keywords. Generates coverage/density/breadth
+ * metrics, matched/missing keyword arrays, and rule-based suggestions—used as
+ * both the fallback display and as supplemental context for semantic scoring.
+ */
 export function analyzeResume(
   resumeText: string,
   keywords: KeywordInsight[],
@@ -343,6 +353,7 @@ export function analyzeResume(
   };
 }
 
+// Breaks JD text into manageable sections, tagging each with inferred priority.
 function splitIntoFragments(text: string): SectionFragment[] {
   const lines = text
     .split(/\r?\n/)
@@ -372,6 +383,7 @@ function splitIntoFragments(text: string): SectionFragment[] {
   return fragments;
 }
 
+// Detects section headings (e.g., "Responsibilities") to guide weighting.
 function detectHeadingSection(line: string): RequirementTier | null {
   if (line.length > 80) {
     return null;
@@ -386,6 +398,7 @@ function detectHeadingSection(line: string): RequirementTier | null {
   return null;
 }
 
+// Looks for inline priority markers inside bullet sentences.
 function detectInlinePriority(line: string): RequirementTier | null {
   for (const pattern of INLINE_PRIORITY_PATTERNS) {
     if (pattern.regex.test(line)) {
