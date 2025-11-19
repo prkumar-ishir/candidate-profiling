@@ -93,13 +93,14 @@ function buildPromptPayload(
         .join('\n')
     : 'No keyword metadata provided.';
 
-  const prompt = `You are an HR screening assistant. Score how well the resume aligns with the job description.
+const prompt = `You are an HR screening assistant. Score how well the resume aligns with the job description.
 Return JSON with:
 - semanticScore: 0-100 integer, holistic probability of success.
 - summary: 1 sentence explaining the score.
 - alignedThemes: up to 4 short phrases where the resume clearly aligns with the JD.
 - missingThemes: up to 4 short phrases capturing gaps.
 - suggestions: up to 4 resume improvements grounded in the JD.
+- capabilityBreakdown: exactly 3 objects describing (1) Technical & Engineering Expertise, (2) Delivery, Execution & Systems Knowledge, and (3) Communication, Leadership & Collaboration. For each, include id (technical|delivery|communication), title, score 0-100, summary (match quality), strengths (<=3 concrete wins), gaps (<=3 missing signals).
 
 Be strict. Penalize finance-heavy or irrelevant experience if the JD is HR-focused (and vice versa). Only use evidence from the provided texts.`;
 
@@ -112,7 +113,14 @@ Be strict. Penalize finance-heavy or irrelevant experience if the JD is HR-focus
         schema: {
           type: 'object',
           additionalProperties: false,
-          required: ['semanticScore', 'summary', 'alignedThemes', 'missingThemes', 'suggestions'],
+          required: [
+            'semanticScore',
+            'summary',
+            'alignedThemes',
+            'missingThemes',
+            'suggestions',
+            'capabilityBreakdown',
+          ],
           properties: {
             semanticScore: { type: 'number', minimum: 0, maximum: 100 },
             summary: { type: 'string' },
@@ -130,6 +138,35 @@ Be strict. Penalize finance-heavy or irrelevant experience if the JD is HR-focus
               type: 'array',
               maxItems: 4,
               items: { type: 'string' },
+            },
+            capabilityBreakdown: {
+              type: 'array',
+              minItems: 3,
+              maxItems: 3,
+              items: {
+                type: 'object',
+                additionalProperties: false,
+                required: ['id', 'title', 'score', 'summary', 'strengths', 'gaps'],
+                properties: {
+                  id: {
+                    type: 'string',
+                    enum: ['technical', 'delivery', 'communication'],
+                  },
+                  title: { type: 'string' },
+                  score: { type: 'number', minimum: 0, maximum: 100 },
+                  summary: { type: 'string' },
+                  strengths: {
+                    type: 'array',
+                    maxItems: 3,
+                    items: { type: 'string' },
+                  },
+                  gaps: {
+                    type: 'array',
+                    maxItems: 3,
+                    items: { type: 'string' },
+                  },
+                },
+              },
             },
           },
         },
@@ -168,6 +205,7 @@ function buildKeywordExtractionPayload(jdText: string) {
   const prompt = `You are an HR analyst. Extract the most important hiring requirements from the job description.
 Return JSON with:
 - requirements: array of up to 18 items, each { label, priority (must-have | responsibility | preferred | baseline), rationale, weightPercent (0-100), synonyms[] }.
+- questions: exactly 10 interview prompts tailored to the JD. For each include { question, answer } with answers grounded in the JD.
 
 Focus on concrete skills, systems, certifications, and responsibilities. Use the JD structure (Requirements vs Responsibilities) to set priority.`;
 
@@ -180,7 +218,7 @@ Focus on concrete skills, systems, certifications, and responsibilities. Use the
         schema: {
           type: 'object',
           additionalProperties: false,
-          required: ['requirements'],
+          required: ['requirements', 'questions'],
           properties: {
             requirements: {
               type: 'array',
@@ -202,6 +240,20 @@ Focus on concrete skills, systems, certifications, and responsibilities. Use the
                     minItems: 0,
                     items: { type: 'string' },
                   },
+                },
+              },
+            },
+            questions: {
+              type: 'array',
+              minItems: 10,
+              maxItems: 10,
+              items: {
+                type: 'object',
+                additionalProperties: false,
+                required: ['question', 'answer'],
+                properties: {
+                  question: { type: 'string' },
+                  answer: { type: 'string' },
                 },
               },
             },

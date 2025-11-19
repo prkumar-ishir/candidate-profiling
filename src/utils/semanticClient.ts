@@ -1,11 +1,26 @@
 import type { KeywordInsight } from './textProcessing';
 
+export type CapabilityInsight = {
+  id: 'technical' | 'delivery' | 'communication';
+  title: string;
+  score: number;
+  summary: string;
+  strengths: string[];
+  gaps: string[];
+};
+
+export type InterviewQuestion = {
+  question: string;
+  answer: string;
+};
+
 export type SemanticAnalysisResponse = {
   semanticScore: number;
   summary: string;
   alignedThemes: string[];
   missingThemes: string[];
   suggestions: string[];
+  capabilityBreakdown: CapabilityInsight[];
 };
 
 export type SemanticKeyword = {
@@ -14,6 +29,11 @@ export type SemanticKeyword = {
   rationale: string;
   weightPercent: number;
   synonyms?: string[];
+};
+
+export type SemanticKeywordBundle = {
+  requirements: SemanticKeyword[];
+  questions: InterviewQuestion[];
 };
 
 type SemanticRequestPayload = {
@@ -60,7 +80,7 @@ export async function requestSemanticAnalysis(
 
 export async function requestSemanticKeywords(
   jdText: string,
-): Promise<SemanticKeyword[] | null> {
+): Promise<SemanticKeywordBundle | null> {
   if (!jdText.trim()) {
     return null;
   }
@@ -76,7 +96,15 @@ export async function requestSemanticKeywords(
       return null;
     }
     const data = await response.json();
-    return Array.isArray(data?.requirements) ? (data.requirements as SemanticKeyword[]) : null;
+    if (!Array.isArray(data?.requirements)) {
+      return null;
+    }
+    return {
+      requirements: data.requirements as SemanticKeyword[],
+      questions: Array.isArray(data?.questions)
+        ? (data.questions as InterviewQuestion[])
+        : [],
+    };
   } catch (error) {
     console.warn('[semantic-client] Failed to fetch semantic keywords', error);
     return null;
